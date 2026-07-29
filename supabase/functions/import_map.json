@@ -1,0 +1,21 @@
+{
+  "imports": {
+    "@/lib/database.types": "../../src/lib/database.types.ts",
+    "@/lib/dates": "../../src/lib/dates.ts",
+    "@/lib/supabase": "../../src/lib/supabase.ts",
+    "@/lib/case-clock": "../../src/lib/case-clock.ts",
+    "@/lib/deadlines": "../../src/lib/deadlines.ts",
+    "@/lib/office-resolver": "../../src/lib/office-resolver.ts",
+    "@/lib/timeline": "../../src/lib/timeline.ts",
+    "@/lib/receipt": "../../src/lib/receipt.ts",
+    "@/lib/form-type": "../../src/lib/form-type.ts",
+    "@/lib/status-classifier": "../../src/lib/status-classifier.ts",
+    "@/lib/polling-schedule": "../../src/lib/polling-schedule.ts",
+    "@/lib/pending-details": "../../src/lib/pending-details.ts",
+    "@/lib/ruler": "../../src/lib/ruler.ts",
+    "@/lib/share-card": "../../src/lib/share-card.ts",
+    "@/lib/uscis": "../../src/lib/uscis.ts",
+    "@/constants/strings": "../../src/constants/strings.ts",
+    "@/constants/theme": "../../src/constants/theme.ts"
+  }
+}

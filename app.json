@@ -1,0 +1,58 @@
+{
+  "expo": {
+    "name": "Pending",
+    "slug": "pending-case-tracker",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "pending",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#100E0C",
+    "ios": {
+      "icon": "./assets/expo.icon",
+      "userInterfaceStyle": "dark",
+      "infoPlist": {
+        "UIUserInterfaceStyle": "Dark"
+      }
+    },
+    "android": {
+      "userInterfaceStyle": "dark",
+      "adaptiveIcon": {
+        "backgroundColor": "#100E0C",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundImage": "./assets/images/android-icon-background.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#100E0C",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 76
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/splash-icon.png",
+          "color": "#E3A04A"
+        }
+      ],
+      "@react-native-community/datetimepicker",
+      "expo-sharing"
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}

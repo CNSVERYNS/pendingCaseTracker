@@ -1,0 +1,42 @@
+project_id = "pending-case-tracker"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public"]
+max_rows = 1000
+
+[db]
+port = 54322
+major_version = 15
+
+[studio]
+enabled = true
+port = 54323
+
+[auth]
+enabled = true
+site_url = "pending://"
+additional_redirect_urls = ["pending://auth/callback"]
+jwt_expiry = 3600
+enable_signup = true
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = false
+enable_confirmations = false
+
+# Magic link only — no password grant is exposed to the client.
+[auth.sms]
+enable_signup = false
+
+[edge_runtime]
+enabled = true
+
+# poll-cases is invoked by pg_cron via pg_net with the service role key as
+# its bearer token, which is itself a validly-signed JWT — default verify_jwt
+# (true) is left in place for both functions so no caller can trigger a USCIS
+# call, and thus spend quota, without a legitimate token.
+[functions.lookup-case]
+verify_jwt = true
