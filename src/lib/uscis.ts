@@ -35,6 +35,13 @@
  *     ever does use it.
  *   - Rate limits per the spec (untested live — would require exhausting
  *     quota): sandbox 5 req/s, 1,000/day; production 10 req/s, 150,000/day.
+ *   - `hist_case_status` (live-verified 2026-07-29 across several sandbox
+ *     receipts): an array of `{ date, completed_text_en, completed_text_es }`
+ *     milestone entries — the receipt's full history *to date*, already
+ *     populated on the very first lookup, not something Pending has to
+ *     accumulate over repeated polls. `create-case` uses this to backfill
+ *     `case_events` once at creation time so a case's timeline reflects its
+ *     real history immediately, not just changes detected after it was added.
  */
 
 export type UscisApiEndpoint = 'token' | 'case-status';
@@ -48,6 +55,12 @@ export interface UscisApiCallEvent {
   calledAt: string;
 }
 
+export interface CaseHistoryEntry {
+  /** Already YYYY-MM-DD in the API's `hist_case_status[].date` field, unlike `submittedDate`/`modifiedDate`. */
+  occurredOn: string;
+  label: string;
+}
+
 export interface CaseStatusResult {
   receiptNumber: string;
   statusTitle: string;
@@ -56,6 +69,13 @@ export interface CaseStatusResult {
   formType: string | null;
   /** From the API's `submittedDate`, normalized to YYYY-MM-DD — null if absent/unparseable. */
   filedOn: string | null;
+  /**
+   * From `hist_case_status` — live-verified 2026-07-29 to be the receipt's
+   * full milestone history to date (e.g. biometrics/interview/decision
+   * entries with real dates), not just a log of Pending's own past polls.
+   * Oldest first. Empty when the API omits it or every entry is malformed.
+   */
+  history: CaseHistoryEntry[];
   receivedAt: string;
 }
 
@@ -153,6 +173,21 @@ function parseUscisDate(value: unknown): string | null {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+/** `hist_case_status[].date` is already YYYY-MM-DD, unlike `submittedDate`/`modifiedDate` — live-verified 2026-07-29. */
+function parseCaseHistory(value: unknown): CaseHistoryEntry[] {
+  if (!Array.isArray(value)) return [];
+  const entries: CaseHistoryEntry[] = [];
+  for (const item of value) {
+    const record = item as Record<string, unknown>;
+    const occurredOn = typeof record?.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(record.date) ? record.date : null;
+    const label = typeof record?.completed_text_en === 'string' ? record.completed_text_en : null;
+    if (occurredOn && label) {
+      entries.push({ occurredOn, label });
+    }
+  }
+  return entries.sort((a, b) => a.occurredOn.localeCompare(b.occurredOn));
+}
+
 /** Confirmed response shape — see the module doc comment above. */
 export function parseCaseStatusResponse(receiptNumber: string, body: unknown, receivedAt: string): CaseStatusResult {
   const record = (body as { case_status?: Record<string, unknown> })?.case_status;
@@ -177,6 +212,7 @@ export function parseCaseStatusResponse(receiptNumber: string, body: unknown, re
     statusText,
     formType: typeof record?.formType === 'string' && record.formType ? record.formType : null,
     filedOn: parseUscisDate(record?.submittedDate),
+    history: parseCaseHistory((body as { case_status?: Record<string, unknown> })?.case_status?.hist_case_status),
     receivedAt,
   };
 }

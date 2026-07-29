@@ -33,7 +33,11 @@ Deno.serve(async (req) => {
   }
 
   if (!isValidReceiptNumber(receiptNumber)) {
-    return json({ error: 'invalid_format' }, 400);
+    // 200, not 400: supabase-js's functions.invoke() nulls out `data` and
+    // throws a generic FunctionsHttpError on any non-2xx status *before*
+    // the caller ever sees the response body, which would make onboarding's
+    // `body.error === '...'` branching on this value unreachable.
+    return json({ error: 'invalid_format' });
   }
 
   const uscis = createUscisClient({
@@ -60,10 +64,10 @@ Deno.serve(async (req) => {
     });
   } catch (err) {
     if (err instanceof UscisNotFoundError || err instanceof UscisInvalidFormatError) {
-      return json({ error: 'not_found' }, 404);
+      return json({ error: 'not_found' });
     }
     // Onboarding must never be blocked by an API failure (§10) — the client
     // treats this the same as "unavailable" and lets the user continue.
-    return json({ error: 'unavailable' }, 502);
+    return json({ error: 'unavailable' });
   }
 });

@@ -103,6 +103,53 @@ describe('createUscisClient — happy path', () => {
     expect(result.filedOn).toBeNull();
   });
 
+  it('parses hist_case_status into history, oldest first — matches a live sandbox response shape', async () => {
+    const fetchImpl = vi.fn(async (url: string) =>
+      url.includes('accesstoken')
+        ? tokenOk()
+        : statusOk({
+            hist_case_status: [
+              { date: '2023-09-05', completed_text_en: 'We approved your Form I-130.', completed_text_es: 'x' },
+              { date: '2023-01-10', completed_text_en: 'We received your Form I-130.', completed_text_es: 'x' },
+            ],
+          }),
+    );
+    const client = createUscisClient(baseConfig(fetchImpl as unknown as typeof fetch));
+    const result = await client.fetchCaseStatus('IOE0912345678');
+
+    expect(result.history).toEqual([
+      { occurredOn: '2023-01-10', label: 'We received your Form I-130.' },
+      { occurredOn: '2023-09-05', label: 'We approved your Form I-130.' },
+    ]);
+  });
+
+  it('returns an empty history array when hist_case_status is null, absent, or malformed', async () => {
+    const fetchImpl = vi.fn(async (url: string) =>
+      url.includes('accesstoken') ? tokenOk() : statusOk({ hist_case_status: null }),
+    );
+    const client = createUscisClient(baseConfig(fetchImpl as unknown as typeof fetch));
+    const result = await client.fetchCaseStatus('IOE0912345678');
+    expect(result.history).toEqual([]);
+  });
+
+  it('drops individual history entries missing a date or label instead of failing the whole parse', async () => {
+    const fetchImpl = vi.fn(async (url: string) =>
+      url.includes('accesstoken')
+        ? tokenOk()
+        : statusOk({
+            hist_case_status: [
+              { date: '2023-09-05', completed_text_en: 'Good entry' },
+              { date: 'not-a-date', completed_text_en: 'Bad date' },
+              { date: '2023-09-06' },
+              'not-an-object',
+            ],
+          }),
+    );
+    const client = createUscisClient(baseConfig(fetchImpl as unknown as typeof fetch));
+    const result = await client.fetchCaseStatus('IOE0912345678');
+    expect(result.history).toEqual([{ occurredOn: '2023-09-05', label: 'Good entry' }]);
+  });
+
   it('reuses a cached token across calls', async () => {
     let tokenCalls = 0;
     const fetchImpl = vi.fn(async (url: string) => {

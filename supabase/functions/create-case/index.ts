@@ -142,14 +142,34 @@ Deno.serve(async (req) => {
 
     const classification = classifyStatusChange(status.statusTitle, status.statusText);
     const alreadyProvided = milestones.some((m) => m.kind === classification.eventKind);
+    const currentOccurredOn = now.slice(0, 10);
 
     await admin.from('case_events').insert({
       case_id: newCase.id,
       kind: classification.eventKind,
       label: status.statusTitle,
-      occurred_on: now.slice(0, 10),
+      occurred_on: currentOccurredOn,
       source: 'poll',
     });
+
+    // Backfill the receipt's real history (build brief follow-up, 2026-07-29):
+    // hist_case_status is the full milestone trail to date, already present
+    // on this very first lookup — not something Pending has to accumulate
+    // over future polls. Skip the entry that's just a restatement of the
+    // "current status" row inserted above (same day, same classified kind —
+    // USCIS's own history list ends with the case's current status).
+    const historyEvents = status.history
+      .filter((h) => !(h.occurredOn === currentOccurredOn && classifyStatusChange('', h.label).eventKind === classification.eventKind))
+      .map((h) => ({
+        case_id: newCase.id,
+        kind: classifyStatusChange('', h.label).eventKind,
+        label: h.label,
+        occurred_on: h.occurredOn,
+        source: 'uscis_history' as const,
+      }));
+    if (historyEvents.length > 0) {
+      await admin.from('case_events').insert(historyEvents);
+    }
 
     if (classification.isDecision) {
       await admin.from('cases').update({ state: 'decided' }).eq('id', newCase.id);

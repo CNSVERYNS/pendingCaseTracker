@@ -21,7 +21,7 @@ export type CaseEventKind =
   | 'card_mailed'
   | 'other';
 
-export type CaseEventSource = 'manual' | 'poll';
+export type CaseEventSource = 'manual' | 'poll' | 'uscis_history';
 
 export type PendingDetailKind =
   | 'interview_date'
