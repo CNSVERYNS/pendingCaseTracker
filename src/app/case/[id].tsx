@@ -17,6 +17,7 @@ import { ThemedView } from '@/components/themed-view';
 import { ScreenMargin, Spacing } from '@/constants/theme';
 import { strings } from '@/constants/strings';
 import { computeDaysWaiting } from '@/lib/case-clock';
+import { formatLongDate } from '@/lib/dates';
 import { isPendingDetailDue } from '@/lib/pending-details';
 import { receiptPrefix } from '@/lib/receipt';
 import { buildShareMilestones } from '@/lib/share-card';
@@ -104,6 +105,16 @@ export default function CaseHomeScreen() {
           ) : null}
 
           {range ? <Ruler days={days} range={range} /> : null}
+
+          {data.stageEstimate ? (
+            <ThemedText type="label" color="muted">
+              {data.stageEstimate.confidence === 'personalized'
+                ? strings.home.stageEstimate
+                    .replace('{count}', String(data.stageEstimate.sampleSize))
+                    .replace('{date}', formatLongDate(data.stageEstimate.estimatedDate))
+                : strings.home.stageEstimateTypical.replace('{date}', formatLongDate(data.stageEstimate.estimatedDate))}
+            </ThemedText>
+          ) : null}
 
           <Timeline rows={timelineRows} />
 

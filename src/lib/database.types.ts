@@ -236,6 +236,15 @@ export interface Database {
         };
         Returns: undefined;
       };
+      get_stage_estimate: {
+        Args: {
+          p_form_type: string;
+          p_office_code: string;
+          p_from_kind: string;
+          p_to_kind?: string;
+        };
+        Returns: { sample_size: number; median_days: number | null }[];
+      };
     };
   };
 }

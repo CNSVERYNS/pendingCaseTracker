@@ -8,6 +8,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 import { createUscisClient } from '../../../src/lib/uscis.ts';
 import { classifyStatusChange } from '../../../src/lib/status-classifier.ts';
 import { isValidReceiptNumber, normalizeReceiptNumber } from '../../../src/lib/receipt.ts';
+import { findPriorEventForInterval, type EventForInterval } from '../../../src/lib/stage-estimate.ts';
 import { corsHeaders } from '../_shared/cors.ts';
 import { sha256Hex } from '../_shared/hash.ts';
 
@@ -20,6 +21,7 @@ const USCIS_CLIENT_SECRET = Deno.env.get('USCIS_CLIENT_SECRET')!;
 
 const FORM_TYPES = ['I-485', 'I-765', 'I-130', 'N-400', 'I-131', 'I-751'];
 const MILESTONE_KINDS = ['biometrics', 'interview_scheduled', 'interview', 'rfe'];
+const NATIONAL_OFFICE_CODE = 'NATIONAL';
 
 interface Milestone {
   kind: string;
@@ -169,6 +171,36 @@ Deno.serve(async (req) => {
       }));
     if (historyEvents.length > 0) {
       await admin.from('case_events').insert(historyEvents);
+    }
+
+    // Anonymous stage-to-stage timing data (build brief follow-up,
+    // 2026-07-30) — fuels get_stage_estimate's "how much longer for people
+    // like you" predictions. Descriptive only: replay every event this case
+    // now has in the order it actually happened, recording whatever real gap
+    // led into each one, with no assumption about which stage "should"
+    // follow another (see stage-estimate.ts doc comment). Fire-and-forget,
+    // same as the uscis_api_calls logging in poll-cases — never blocks the
+    // response on analytics writes.
+    const allEvents: EventForInterval[] = [
+      { kind: 'filed', occurredOn: payload.filedOn },
+      ...milestones.map((m) => ({ kind: m.kind, occurredOn: m.occurredOn })),
+      ...historyEvents.map((h) => ({ kind: h.kind, occurredOn: h.occurred_on })),
+      { kind: classification.eventKind, occurredOn: currentOccurredOn },
+    ].sort((a, b) => (a.occurredOn < b.occurredOn ? -1 : a.occurredOn > b.occurredOn ? 1 : 0));
+
+    const seenEvents: EventForInterval[] = [];
+    for (const event of allEvents) {
+      const prior = findPriorEventForInterval(seenEvents, event);
+      if (prior) {
+        void admin.rpc('record_interval', {
+          p_form_type: payload.formType,
+          p_office_code: payload.officeCode ?? NATIONAL_OFFICE_CODE,
+          p_from_kind: prior.fromKind,
+          p_to_kind: event.kind,
+          p_days: prior.days,
+        });
+      }
+      seenEvents.push(event);
     }
 
     if (classification.isDecision) {

@@ -16,6 +16,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 import { createUscisClient, type UscisApiCallEvent } from '../../../src/lib/uscis.ts';
 import { classifyStatusChange } from '../../../src/lib/status-classifier.ts';
 import { isDueForPoll, type ProcessingRange } from '../../../src/lib/polling-schedule.ts';
+import { findPriorEventForInterval } from '../../../src/lib/stage-estimate.ts';
 import { sha256Hex } from '../_shared/hash.ts';
 import { sendExpoPush } from '../_shared/expo-push.ts';
 
@@ -89,7 +90,7 @@ Deno.serve(async () => {
   for (const c of cases) {
     const { data: lastEvent } = await supabase
       .from('case_events')
-      .select('occurred_on')
+      .select('kind, occurred_on')
       .eq('case_id', c.id)
       .order('occurred_on', { ascending: false })
       .limit(1)
@@ -155,6 +156,26 @@ Deno.serve(async () => {
           occurred_on: today,
           source: 'poll',
         });
+
+        // Anonymous stage-to-stage timing data (build brief follow-up,
+        // 2026-07-30) — see stage-estimate.ts doc comment. Descriptive only:
+        // whatever event preceded this one is the real "from" stage, no
+        // assumption about what "should" come next.
+        const prior = lastEvent
+          ? findPriorEventForInterval(
+              [{ kind: lastEvent.kind, occurredOn: lastEvent.occurred_on }],
+              { kind: classification.eventKind, occurredOn: today },
+            )
+          : null;
+        if (prior) {
+          void supabase.rpc('record_interval', {
+            p_form_type: c.form_type,
+            p_office_code: c.office_code ?? NATIONAL_OFFICE_CODE,
+            p_from_kind: prior.fromKind,
+            p_to_kind: classification.eventKind,
+            p_days: prior.days,
+          });
+        }
 
         if (classification.isDecision) {
           await supabase.from('cases').update({ state: 'decided' }).eq('id', c.id);
