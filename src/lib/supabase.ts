@@ -20,8 +20,9 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,
-    // PKCE lets the callback screen exchange a `?code=` query param for a
-    // session — the fragment-based implicit flow doesn't survive RN linking.
-    flowType: 'pkce',
+    // Sign-in is entirely in-app now (email/SMS OTP code typed into the app
+    // and checked via verifyOtp) — no deep-link redirect to exchange, so the
+    // default implicit flow applies; nothing needs PKCE's code_challenge.
+    flowType: 'implicit',
   },
 });

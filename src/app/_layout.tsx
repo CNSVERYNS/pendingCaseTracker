@@ -20,6 +20,8 @@ import { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { AppLockGate } from '@/components/app-lock-gate';
+
 SplashScreen.preventAutoHideAsync();
 
 // A status-change push should feel calm, not urgent — no sound, no badge,
@@ -77,7 +79,9 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <QueryClientProvider client={queryClient}>
         <StatusBar style="light" />
-        <Slot />
+        <AppLockGate>
+          <Slot />
+        </AppLockGate>
       </QueryClientProvider>
     </SafeAreaProvider>
   );

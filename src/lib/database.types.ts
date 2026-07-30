@@ -48,7 +48,8 @@ export type AnalyticsEventName =
 
 export type UserRow = {
   id: string;
-  email: string;
+  email: string | null;
+  phone: string | null;
   push_token: string | null;
   timezone: string;
   created_at: string;
@@ -125,7 +126,7 @@ export interface Database {
     Tables: {
       users: {
         Row: UserRow;
-        Insert: Partial<UserRow> & Pick<UserRow, 'id' | 'email'>;
+        Insert: Partial<UserRow> & Pick<UserRow, 'id'>;
         Update: Partial<UserRow>;
         Relationships: [];
       };

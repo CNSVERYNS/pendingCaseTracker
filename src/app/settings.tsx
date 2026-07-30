@@ -10,6 +10,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Colors, ScreenMargin, Spacing } from '@/constants/theme';
 import { strings } from '@/constants/strings';
 import { track } from '@/lib/analytics';
+import { isBiometricAvailable, isBiometricLockEnabled, setBiometricLockEnabled } from '@/lib/biometric-lock';
 import { exportUserData } from '@/lib/export-data';
 import { FORM_TYPE_LABELS } from '@/lib/form-type';
 import { getDeviceTimezone, registerForPushNotificationsAsync } from '@/lib/notifications';
@@ -30,12 +31,31 @@ function useNotificationsEnabled() {
   });
 }
 
+function useBiometricLockState() {
+  return useQuery({
+    queryKey: ['biometric-lock-state'],
+    queryFn: async () => {
+      const [available, enabled] = await Promise.all([isBiometricAvailable(), isBiometricLockEnabled()]);
+      return { available, enabled };
+    },
+  });
+}
+
 export default function SettingsScreen() {
   const queryClient = useQueryClient();
   const { data: cases } = useCasesList();
   const { data: notificationsEnabled } = useNotificationsEnabled();
+  const { data: biometricLock } = useBiometricLockState();
   const [togglingNotifications, setTogglingNotifications] = useState(false);
+  const [togglingBiometricLock, setTogglingBiometricLock] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  async function handleToggleBiometricLock(next: boolean) {
+    setTogglingBiometricLock(true);
+    await setBiometricLockEnabled(next);
+    setTogglingBiometricLock(false);
+    queryClient.invalidateQueries({ queryKey: ['biometric-lock-state'] });
+  }
 
   async function handleToggleNotifications(next: boolean) {
     setTogglingNotifications(true);
@@ -122,6 +142,29 @@ export default function SettingsScreen() {
               )}
             </View>
           </View>
+
+          {biometricLock?.available ? (
+            <View style={styles.section}>
+              <View style={styles.row}>
+                <View style={styles.rowText}>
+                  <ThemedText type="bodyMedium">{strings.settings.biometricLock}</ThemedText>
+                  <ThemedText type="label" color="muted">
+                    {strings.settings.biometricLockSubtitle}
+                  </ThemedText>
+                </View>
+                {togglingBiometricLock ? (
+                  <ActivityIndicator />
+                ) : (
+                  <Switch
+                    value={biometricLock?.enabled ?? false}
+                    onValueChange={handleToggleBiometricLock}
+                    trackColor={{ false: Colors.hairline, true: Colors.amber }}
+                    thumbColor={Colors.paper}
+                  />
+                )}
+              </View>
+            </View>
+          ) : null}
 
           <View style={styles.section}>
             <ThemedText type="label" color="muted">
